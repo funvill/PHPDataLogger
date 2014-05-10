@@ -138,15 +138,15 @@ API Version
 HTTP Status codes
 -------------
  
- | Http status code            | Description           | 
- | --------------------------- |:--------------------- | 
- | 200 OK                      | Success, No problems  | 
- | 201 Created                 | Success, The value was inserted in to the database. | 
- | 204 No Content              | Success, But no results to return.  | 
- | 400 Bad Request             | There was a problem decoding the request. Modify the request before trying again. | 
- | 405 Method Not Allowed      | Method used is not supported, Currently the only methods that are supported are *GET* and *POST* | 
- | 415 Unsupported Media Type  | The requested media type is not supported, Currently the only media types that are accepted are JSON, TEXT, HTML | 
- | 500 Internal Server Error   | Could not process the request, Server error. | 
+| Http status code            | Description           | 
+| --------------------------- |:--------------------- | 
+| 200 OK                      | Success, No problems  | 
+| 201 Created                 | Success, The value was inserted in to the database. | 
+| 204 No Content              | Success, But no results to return.  | 
+| 400 Bad Request             | There was a problem decoding the request. Modify the request before trying again. | 
+| 405 Method Not Allowed      | Method used is not supported, Currently the only methods that are supported are *GET* and *POST* | 
+| 415 Unsupported Media Type  | The requested media type is not supported, Currently the only media types that are accepted are JSON, TEXT, HTML | 
+| 500 Internal Server Error   | Could not process the request, Server error. | 
 
  
  
