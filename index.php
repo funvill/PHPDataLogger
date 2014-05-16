@@ -381,11 +381,162 @@ class CDataLogger
 			exit(); 
 		}
 
-		// Render as html 
+?>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Datalogger</title>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+	<!-- Bootstrap -->
+	<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+	<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+	
+	<!-- d3 -->
+    <script type="text/javascript" src="./js/jquery-2.0.3.min.js"></script>
+    <script type="text/javascript" src="./js/knockout-3.0.0.js"></script>
+    <script type="text/javascript" src="./js/globalize.min.js"></script>
+    <script type="text/javascript" src="./js/dx.chartjs.js"></script>    
+
+
+  </head>
+  <body>
+  	<div class="container-fluid">
+  		<div class="row">
+  			<div class='col-md-2'></div>
+  			<div class='col-md-8'>
+			    <h1>DataLogger</h1>
+			    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc laoreet non ipsum in aliquam. Aliquam erat volutpat. Maecenas rhoncus tempor neque, eget malesuada augue malesuada non. Sed arcu leo, tempus vel adipiscing eget, cursus quis arcu. Maecenas volutpat iaculis dictum. Duis adipiscing vehicula libero ut convallis. Sed quis venenatis est, vitae tincidunt nulla. Nullam metus felis, mollis eget posuere nec, sodales ut leo. In ultricies arcu tortor, a ultrices quam placerat at. Etiam congue lacus tellus, a pharetra tortor tristique vel. Morbi aliquet arcu vitae aliquam dictum. Proin quis ornare nisi, eu dictum purus. Pellentesque dapibus feugiat turpis eu ultricies. Quisque in lorem massa. Aliquam nec tortor quis sem semper dapibus nec non nunc.</p>
+
+			    <p>Source code and documantation: <a href='https://github.com/funvill/PHPDataLogger'>Github</a></p>
+
+				<p><a href='./'>List all properties</a></p>
+			    <?php
+			    
+			    // ToDo: show error when there is an error. 
+			    if( isset( $this->page['request']['method'] ) && $this->page['request']['method'] == 'post' ) {
+			    	echo '<p class="bg-success" style="padding: 10px">The value of ['. $this->page['request']['value'] .'] was added successfuly to the property [<a href="?method=get&name='. $this->page['request']['name'] .'">'. $this->page['request']['name'] .'</a>]</p>';
+			    } else if( @count ($this->page['response']['data'] ) > 0 ) {
+					if( isset( $this->page['request']['name'] ) ) {
+						// This is an individual property request 
+						?>			
+						<div id="chartContainerCombined" style="width:100%;height: 600px"></div>			
+						<script>var dataLoggingSource = [<?php 
+				        foreach( $this->page['response']['data'] as $key => $value ) {
+			                echo '{ date: "'. $value['created'] .'", value: '. $value['value'] ."},\n";				            
+				        }?>];
+
+$("#chartContainerCombined").dxChart({
+    dataSource: dataLoggingSource,
+    commonSeriesSettings: { type: "splineArea", argumentField: "date", point: { visible: true },},
+    series: [ { valueField: "value", name: "value", color: "#880000" },],
+    tooltip: { enabled: true, customizeText: function (arg) { return this.valueText ; } },    
+    title: "<?php echo $this->page['request']['name'] ?>",
+    argumentAxis:{ valueMarginsEnabled: false, grid: { visible: false },},
+    valueAxis: [{ grid: { visible: true }, }],
+    legend: { visible: false, }
+});
+</script>
+<?php 
+						// Print the table of data. 
+						$firstRow = true ; 
+						echo '<table class="table table-striped">';
+						foreach( $this->page['response']['data'] as $row ) {
+							if( $firstRow ) {
+								$firstRow = false ;
+								echo '<thead><tr>';
+								foreach( array_keys( $row ) as $key ) {
+									if( $key == 'name' ) {
+										continue; 
+									}
+									echo '<th>'. $key .'</th>';
+								}
+								echo '</thead></tr><tbody>';
+							}
+							
+							echo '<tr>';								
+							foreach( $row as $key=>$value ) {
+								if( $key == 'name' ) {
+									continue; 
+								}
+								echo '<td>'. $value .'</td>';
+							}
+							echo '</tr>';
+						}
+						echo '</tbody><table>';
+
+					} else {
+						// List all the data points 
+			    		echo '<h3>Data Points:</h3>';
+				    	echo '<ul>';
+				    	foreach( $this->page['response']['data'] as $row ) {
+				    		if( !isset( $row['name']) ) {
+				    			continue; 
+				    		}
+					    	echo '<li><a href="?act=get&name='. $row['name'] .'">'. $row['name'] .'</a></li>';
+				    	}
+				    	echo '</ul>';
+				    	?>
+
+				    	<h3>Insert value</h3>
+				    	<form role="form" method="get">
+				    		<input type='hidden' name='method' value='post' />
+				    		<div class='row'>
+				    			<label for='name' class="col-sm-2 control-label">Name</label>
+				    			<div class="col-sm-4">
+				    				<select name='name' class="form-control">
+				    				<?php 
+										foreach( $this->page['response']['data'] as $row ) {
+											if( !isset( $row['name']) ) {
+												continue; 
+											}
+											echo '<option value="'. $row['name'] .'">'. $row['name'] .'</option>';
+										}
+				    				?>
+				    				</select>
+				    			</div>
+							</div>
+							<div class='row'>
+								<label for='value' class="col-sm-2 control-label">Value</label>
+				    			<div class="col-sm-4"><input name='value' type='text' class="form-control" /></div>
+				    		</div>
+
+			    			<button type="submit" class="btn btn-default">Submit</button>
+				    	</form>
+
+				    	<?php 
+				    }
+			    }			    	
+			    ?>
+			</div>
+			<div class='col-md-2'></div>
+		</div>
+	</div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+	<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+  </body>
+</html>
+<?
+
+		// debug
+		/*
 		echo '<pre>';
 		print_r ( $this->page ); 
 		echo '</pre>';
-		
+		*/
+	
 	}
 
 } ; 
