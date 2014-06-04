@@ -30,6 +30,21 @@ class CDataLogger
 	public $page ; 
 	
 	function __construct() {
+		
+		// Ensure that this server has the required php functions
+		// PHP version >= 5.2.x 
+		$php_version = explode('.', PHP_VERSION);
+		if ($php_version[0] < 5 || ( $php_version[0] >= 5 && $php_version[1] < 2 ) ) {
+			die( "Error: PHP version 5.2 or greater required. current version=". $php_version ); 
+		}
+		
+		// Sqlite, >= 3.x
+		$sqlite_version = explode('.', sqlite_libversion() );
+		if( $sqlite_version[0] < 3 ) {
+			die( "Error: Sqlite version 3.x or greater required. current version=". sqlite_libversion() ) ; 
+		}
+		
+		
 		$this->page['settings']['database'] = SETTING_DATABASE ; 
 		$this->ConnctToDatabase() ; 
 	}
