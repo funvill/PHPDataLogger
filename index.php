@@ -38,10 +38,14 @@ class CDataLogger
 			die( "Error: PHP version 5.2 or greater required. current version=". $php_version ); 
 		}
 		
-		// Sqlite, >= 3.x
-		$sqlite_version = explode('.', sqlite_libversion() );
-		if( $sqlite_version[0] < 3 ) {
-			die( "Error: Sqlite version 3.x or greater required. current version=". sqlite_libversion() ) ; 
+		if (function_exists("sqlite_libversion")) {
+			// Sqlite, >= 3.x
+			$sqlite_version = explode('.', sqlite_libversion() );
+			if( $sqlite_version[0] < 3 ) {
+				die( "Error: Sqlite version 3.x or greater required. current version=". sqlite_libversion() ) ; 
+			}
+		} else {
+			die( "Error: Sqlite version 3.x or greater required. SQLite not currently installed" ) ; 
 		}
 		
 		
