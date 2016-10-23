@@ -38,9 +38,10 @@ class CDataLogger
 			die( "Error: PHP version 5.2 or greater required. current version=". $php_version ); 
 		}
 		
-		if (function_exists("sqlite_libversion")) {
-			// Sqlite, >= 3.x
-			$sqlite_version = explode('.', sqlite_libversion() );
+		// Check the SQLite version. 
+		if (in_array("sqlite",PDO::getAvailableDrivers(),TRUE)) {
+			$dbh = new PDO('sqlite::memory:');
+			$sqlite_version = explode('.', $dbh->query('select sqlite_version()')->fetch()[0] );
 			if( $sqlite_version[0] < 3 ) {
 				die( "Error: Sqlite version 3.x or greater required. current version=". sqlite_libversion() ) ; 
 			}
@@ -73,13 +74,14 @@ class CDataLogger
 
 	// Connects to the database and sets up the dbhandle for future requests. 
 	private function ConnctToDatabase( ) {
-		// Attempt to connect to the database 
-		$this->page['dbhandle'] = new SQLite3( $this->page['settings']['database'] ); 
 
-		// Check to see if the database tables exist. if they do not create them. 
-		if( ! $this->page['dbhandle']->exec('CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, created TIMESTAMP DEFAULT CURRENT_TIMESTAMP, name char(255), value char(255) )') ) {
-			throw new Exception( "Could not create database", 500 ); 
-		}
+		// Create (connect to) SQLite database in file
+		$this->page['dbhandle'] = new PDO('sqlite:'. $this->page['settings']['database'] );
+		// Set errormode to exceptions
+		$this->page['dbhandle']->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+		// Create tables
+		$this->page['dbhandle']->query('CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, created TIMESTAMP DEFAULT CURRENT_TIMESTAMP, name char(255), value char(255) )') ;
 	}
 
 	// Query the database. 
@@ -88,13 +90,11 @@ class CDataLogger
 		$data = array(); 
 		$results = $this->page['dbhandle']->query( $sql_query ) ;
 		if( $results !== false ) {
-			while ($row = $results->fetchArray( SQLITE3_ASSOC ) ) {
-				$data[ ] = $row ; 
-			} 
+			$data = $results->fetchAll( PDO::FETCH_ASSOC );
 		} else {
 			// There was an error. 
-			$errorCode    = $this->page['dbhandle']->lastErrorCode() ; 
-			$errorMessage = $this->page['dbhandle']->lastErrorMsg () ;
+			$errorCode    = $this->page['dbhandle']->errorCode() ; 
+			$errorMessage = $this->page['dbhandle']->errorInfo () ;
 			throw new Exception( "SQL query failed, error_code=". $errorCode .', error_message='. $errorMessage. ', sql_query='. $sql_query, 500 ); 
 		}
 
@@ -117,10 +117,10 @@ class CDataLogger
 	 	}
 
 	 	// Send the data home if needed. 
-	 	$this->callhome( $name, $value, $created ) ; 
+	 	// $this->callhome( $name, $value, $created ) ; 
 
 	 	// return the ID of the inserted query. 
-	 	return $this->page['dbhandle']->lastInsertRowID () ; 
+	 	return $this->page['dbhandle']->lastInsertId () ; 
 	}
 
 	private function GetData( $name = false, $search = false ) {
@@ -340,7 +340,11 @@ class CDataLogger
 					$this->page['response']['status_code'] = '200';
 				} else {
 					// There was no results to this request. 
-					throw new Exception( 'No results to this request.', 204 );
+					// This could be the very first request on an empty database.
+					$this->page['response']['status'] 	 = 'ok';
+					$this->page['response']['status_code'] = '200';
+
+					// throw new Exception( 'No results to this request.', 204 );
 					return ; 
 				}
 				break; 
@@ -407,7 +411,7 @@ class CDataLogger
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Datalogger</title>
+    <title>PHPDataLogger</title>
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -421,10 +425,10 @@ class CDataLogger
 	<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
 	
 	<!-- d3 -->
-    <script type="text/javascript" src="./js/jquery-2.0.3.min.js"></script>
-    <script type="text/javascript" src="./js/knockout-3.0.0.js"></script>
-    <script type="text/javascript" src="./js/globalize.min.js"></script>
-    <script type="text/javascript" src="./js/dx.chartjs.js"></script>    
+	<script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery/jquery-2.1.4.min.js"></script>
+	<script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/globalize/0.1.1/globalize.min.js"></script>
+	<script type="text/javascript" src="http://cdn3.devexpress.com/jslib/15.2.5/js/dx.chartjs.js"></script>
+
 
 
   </head>
@@ -434,107 +438,104 @@ class CDataLogger
   			<div class='col-md-2'></div>
   			<div class='col-md-8'>
 			    <h1>DataLogger</h1>
-			    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc laoreet non ipsum in aliquam. Aliquam erat volutpat. Maecenas rhoncus tempor neque, eget malesuada augue malesuada non. Sed arcu leo, tempus vel adipiscing eget, cursus quis arcu. Maecenas volutpat iaculis dictum. Duis adipiscing vehicula libero ut convallis. Sed quis venenatis est, vitae tincidunt nulla. Nullam metus felis, mollis eget posuere nec, sodales ut leo. In ultricies arcu tortor, a ultrices quam placerat at. Etiam congue lacus tellus, a pharetra tortor tristique vel. Morbi aliquet arcu vitae aliquam dictum. Proin quis ornare nisi, eu dictum purus. Pellentesque dapibus feugiat turpis eu ultricies. Quisque in lorem massa. Aliquam nec tortor quis sem semper dapibus nec non nunc.</p>
-
+			    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc laoreet non ipsum in aliquam. Aliquam erat volutpat. Maecenas rhoncus tempor neque, eget malesuada augue malesuada non. Sed arcu leo, tempus vel adipiscing eget, cursus quis arcu.</p>
 			    <p>Source code and documantation: <a href='https://github.com/funvill/PHPDataLogger'>Github</a></p>
 
-				<p><a href='./'>List all properties</a></p>
-			    <?php
-			    
-			    // ToDo: show error when there is an error. 
-			    if( isset( $this->page['request']['method'] ) && $this->page['request']['method'] == 'post' ) {
-			    	echo '<p class="bg-success" style="padding: 10px">The value of ['. $this->page['request']['value'] .'] was added successfuly to the property [<a href="?method=get&name='. $this->page['request']['name'] .'">'. $this->page['request']['name'] .'</a>]</p>';
-			    } else if( @count ($this->page['response']['data'] ) > 0 ) {
-					if( isset( $this->page['request']['name'] ) ) {
-						// This is an individual property request 
-						?>			
+				
+<?php
+// ToDo: show error when there is an error. 
+if( isset( $this->page['request']['method'] ) && $this->page['request']['method'] == 'post' ) {
+	echo '<p class="bg-success" style="padding: 10px">The value of ['. $this->page['request']['value'].'] was added successfuly to the property [<a href="?method=get&name='. $this->page['request']['name'] .'">'. $this->page['request']['name'] .'</a>]</p>';
+} else if( @count ($this->page['response']['data'] ) > 0 ) {
+	if( isset( $this->page['request']['name'] ) ) {
+		// This is an individual property request 
+		echo "<p><a href='?'>List all properties</a></p>";
+
+		// Print the table of data. 
+		$firstRow = true ; 
+		echo '<table class="table table-striped">';
+		foreach( $this->page['response']['data'] as $row ) {
+			if( $firstRow ) {
+				$firstRow = false ;
+				echo '<thead><tr>';
+				foreach( array_keys( $row ) as $key ) {
+					if( $key == 'name' ) {
+						continue; 
+					}
+					echo '<th>'. $key .'</th>';
+				}
+				echo '</thead></tr><tbody>';
+			}
+			
+			echo '<tr>';								
+			foreach( $row as $key=>$value ) {
+				if( $key == 'name' ) {
+					continue; 
+				}
+				echo '<td>'. $value .'</td>';
+			}
+			echo '</tr>';
+		}
+		echo '</tbody><table>';
+
+		?>
+
+
 						<div id="chartContainerCombined" style="width:100%;height: 600px"></div>			
-						<script>var dataLoggingSource = [<?php 
+						<script>var dataLoggingSource = [
+						<?php 
 				        foreach( $this->page['response']['data'] as $key => $value ) {
 			                echo '{ date: "'. $value['created'] .'", value: '. $value['value'] ."},\n";				            
-				        }?>];
+				        } ?>
+						];
 
 $("#chartContainerCombined").dxChart({
     dataSource: dataLoggingSource,
     commonSeriesSettings: { type: "splineArea", argumentField: "date", point: { visible: true },},
     series: [ { valueField: "value", name: "value", color: "#880000" },],
     tooltip: { enabled: true, customizeText: function (arg) { return this.valueText ; } },    
-    title: "<?php echo $this->page['request']['name'] ?>",
+    title: "Property: <?php echo $this->page['request']['name'] ?>",
     argumentAxis:{ valueMarginsEnabled: false, grid: { visible: false },},
     valueAxis: [{ grid: { visible: true }, }],
     legend: { visible: false, }
 });
 </script>
 <?php 
-						// Print the table of data. 
-						$firstRow = true ; 
-						echo '<table class="table table-striped">';
-						foreach( $this->page['response']['data'] as $row ) {
-							if( $firstRow ) {
-								$firstRow = false ;
-								echo '<thead><tr>';
-								foreach( array_keys( $row ) as $key ) {
-									if( $key == 'name' ) {
-										continue; 
-									}
-									echo '<th>'. $key .'</th>';
-								}
-								echo '</thead></tr><tbody>';
-							}
-							
-							echo '<tr>';								
-							foreach( $row as $key=>$value ) {
-								if( $key == 'name' ) {
-									continue; 
-								}
-								echo '<td>'. $value .'</td>';
-							}
-							echo '</tr>';
-						}
-						echo '</tbody><table>';
+						
 
-					} else {
-						// List all the data points 
-			    		echo '<h3>Data Points:</h3>';
-				    	echo '<ul>';
-				    	foreach( $this->page['response']['data'] as $row ) {
-				    		if( !isset( $row['name']) ) {
-				    			continue; 
-				    		}
-					    	echo '<li><a href="?act=get&name='. $row['name'] .'">'. $row['name'] .'</a></li>';
-				    	}
-				    	echo '</ul>';
-				    	?>
+} else {
+	// List all the data points 
+	echo '<h3>Existing Data Points:</h3>';
+	echo '<ul>';
+	foreach( $this->page['response']['data'] as $row ) {
+		if( !isset( $row['name']) ) {
+			continue; 
+		}
+		echo '<li><a href="?act=get&name='. $row['name'] .'">'. $row['name'] .'</a></li>';
+	}
+	echo '</ul>';
+?>
 
-				    	<h3>Insert value</h3>
+				    	<h3>Insert data via HTML Form</h3>
+						<p>Using this form you can manually add a data point.</p>
 				    	<form role="form" method="get">
 				    		<input type='hidden' name='method' value='post' />
 				    		<div class='row'>
 				    			<label for='name' class="col-sm-2 control-label">Name</label>
-				    			<div class="col-sm-4">
-				    				<select name='name' class="form-control">
-				    				<?php 
-										foreach( $this->page['response']['data'] as $row ) {
-											if( !isset( $row['name']) ) {
-												continue; 
-											}
-											echo '<option value="'. $row['name'] .'">'. $row['name'] .'</option>';
-										}
-				    				?>
-				    				</select>
-				    			</div>
+				    			<div class="col-sm-4"><input name='name' type='text' class="form-control" /></div>
 							</div>
 							<div class='row'>
 								<label for='value' class="col-sm-2 control-label">Value</label>
 				    			<div class="col-sm-4"><input name='value' type='text' class="form-control" /></div>
 				    		</div>
-
 			    			<button type="submit" class="btn btn-default">Submit</button>
 				    	</form>
 
+						<h3>Insert data via REST</h3>
+						<p>See github documentation for more information <br /><a href='https://github.com/funvill/PHPDataLogger#post-method'>PHPDataLogger#post-method</a></p>
 				    	<?php 
-				    }
-			    }			    	
+	}
+}			    	
 			    ?>
 			</div>
 			<div class='col-md-2'></div>
@@ -547,14 +548,7 @@ $("#chartContainerCombined").dxChart({
 	<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
   </body>
 </html>
-<?
-
-		// debug
-		/*
-		echo '<pre>';
-		print_r ( $this->page ); 
-		echo '</pre>';
-		*/
+<?php 
 	
 	}
 
@@ -562,10 +556,13 @@ $("#chartContainerCombined").dxChart({
 
 
 
-$dataLogger = new CDataLogger ();
+
+
 
 try {
-	$dataLogger->ProccessRequest(); 
+	$dataLogger = new CDataLogger ();	
+	$dataLogger->ProccessRequest();
+	// print_r($dataLogger); 
 } catch (Exception $e) {
 
 	$response['status'] 		= 'error';	
@@ -588,3 +585,5 @@ try {
 	// Close the connection 
 	exit(); 
 }
+
+?>
