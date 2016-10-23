@@ -11,6 +11,8 @@ define( 'SETTING_DATABASE', 'database.sqlite' );
 define( 'SETTING_CALLHOME', '192.241.237.216:3333' );
 
 
+
+
 // $page['settings']['database'] 			= 'database.sqlite' ; 
 // $page['settings']['callhome']			= '192.241.237.216:3333' ; // Set to false to disable. 
 // $page['settings']['enabled_methods'] 	= array('post', 'get' ) ;
@@ -220,6 +222,8 @@ class CDataLogger
 				$request_format = 'plain' ; 
 			} else if( false !== strpos($_SERVER['HTTP_ACCEPT'], 'application/json') ) {
 				$request_format = 'json' ; 
+			} else if( false !== strpos($_SERVER['HTTP_ACCEPT'], 'application/csv') ) {
+				$request_format = 'csv' ; 				
 			} else {
 				throw new Exception( 'Unknown request type, type=['. $_SERVER['HTTP_ACCEPT'] .']', 400 ) ; 
 			}		
@@ -227,7 +231,7 @@ class CDataLogger
 
 		// Drop the fromat case
 		$request_format = strtolower( $request_format ); 
-		if( in_array( $request_format, array( 'json','html','text') ) ) {
+		if( in_array( $request_format, array( 'json','html','text', 'csv') ) ) {
 			// Supported format 
 			return $request_format ; 
 		} else {
@@ -303,7 +307,10 @@ class CDataLogger
 		// ------------------------
 
 		// Add the createdAt, when the response was built. 
-		$this->page['response']['createdAt'] = date( 'r' ); 
+		$this->page['response']['createdAt'] = date( 'r' );
+
+		// Add the version that created this response 
+		$this->page['response']['version'] = API_VERSION;  
 
 
 		// Process the request. 	
@@ -334,19 +341,11 @@ class CDataLogger
 					$this->page['response']['data'] = $this->GetData( ); 
 				}
 
-				// Check to see if there was anything to report 
-				if( count( $this->page['response']['data'] ) > 0 ) {
-					$this->page['response']['status'] 	 = 'ok';
-					$this->page['response']['status_code'] = '200';
-				} else {
-					// There was no results to this request. 
-					// This could be the very first request on an empty database.
-					$this->page['response']['status'] 	 = 'ok';
-					$this->page['response']['status_code'] = '200';
+				// Evem if there are no results to this request. 
+				// This could be the very first request on an empty database.
+				$this->page['response']['status'] 	   = 'ok';
+				$this->page['response']['status_code'] = '200';
 
-					// throw new Exception( 'No results to this request.', 204 );
-					return ; 
-				}
 				break; 
 			}
 
@@ -402,6 +401,33 @@ class CDataLogger
 			header('Content-Type: text/plain');
 			print_r ( $this->page['response'] ); 
 			exit(); 
+		} else if( $this->page['request']['format'] == 'csv' ) {
+			header('Content-Type: application/csv');
+			header('Content-Disposition: attachment; filename="'.$this->page['request']['name'].'.csv"');
+
+			// Print the header. 
+			$firstRow = true ; 
+			foreach( $this->page['response']['data'] as $row ) {
+				if( $firstRow ) {
+					$firstRow = false ;
+					foreach( array_keys( $row ) as $key ) {
+						if( $key == 'name' ) {
+							continue; 
+						}
+						echo $key .',';
+					}
+					echo "\n";
+				}
+				
+				foreach( $row as $key=>$value ) {
+					if( $key == 'name' ) {
+						continue; 
+					}
+					echo $value .',';
+				}
+				echo "\n";				 
+			}
+			exit();
 		}
 
 ?>
@@ -478,6 +504,12 @@ if( isset( $this->page['request']['method'] ) && $this->page['request']['method'
 		}
 		echo '</tbody><table>';
 
+		echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json">JSON</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=html">HTML</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=text">TEXT</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=csv">CSV</a>, ';
+		
+ 
 		?>
 
 
