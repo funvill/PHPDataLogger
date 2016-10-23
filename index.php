@@ -125,6 +125,19 @@ class CDataLogger
 	 	return $this->page['dbhandle']->lastInsertId () ; 
 	}
 
+	/**
+	 * Get the total 
+	 */
+	private function GetCount( $name ) {
+		$sql_query = 'SELECT COUNT(*) AS totalCount FROM data';  
+		if( strlen($name) > 0 ) {
+			$sql_query .= ' WHERE name="'. SQLite3::escapeString( $name ) .'" ';
+		}
+
+		$result = $this->Query( $sql_query );
+		return $result[0]['totalCount'] ;
+	}
+
 	private function GetData( $name = false, $search = false ) {
 
 		if( true === $search && $name !== false ) {
@@ -335,10 +348,12 @@ class CDataLogger
 				// Get - Get the current values for a perdiculare property
 				else if( isset( $this->page['request']['name'] ) ) {
 					$this->page['response']['data'] = $this->GetData( $this->page['request']['name'] ); 
+					$this->page['response']['totalCount'] = $this->GetCount( $this->page['request']['name'] ) ; 
 				} 
 				// List all - List all the properties 
 				else {
 					$this->page['response']['data'] = $this->GetData( ); 
+					$this->page['response']['totalCount'] = $this->GetCount( '' ) ;
 				}
 
 				// Evem if there are no results to this request. 
@@ -456,8 +471,6 @@ class CDataLogger
 	<script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/globalize/0.1.1/globalize.min.js"></script>
 	<script type="text/javascript" src="http://cdn3.devexpress.com/jslib/15.2.5/js/dx.chartjs.js"></script>
 
-
-
   </head>
   <body>
   	<div class="container-fluid">
@@ -477,15 +490,48 @@ if( isset( $this->page['request']['method'] ) && $this->page['request']['method'
 	if( isset( $this->page['request']['name'] ) ) {
 		// This is an individual property request 
 		echo "<p><a href='?'>List all properties</a></p>";
+
+
 		// Table Navagation 
 		echo '<div class="row"><div class="col-md-6">';
-		echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json">JSON</a>, ';
+		echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json&limit='. $this->page['response']['totalCount'] .'">JSON</a>, ';
 		echo '<a href="?name='.$this->page['request']['name'].'&format=html">HTML</a>, ';
-		echo '<a href="?name='.$this->page['request']['name'].'&format=text">TEXT</a>, ';
-		echo '<a href="?name='.$this->page['request']['name'].'&format=csv">CSV</a>, ';
-		echo '</div><div class="col-md-6 text-right">Data points per page: ';
+// 		echo '<a href="?name='.$this->page['request']['name'].'&format=text&limit='. $this->page['response']['totalCount'] .'">TEXT</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=csv&limit='. $this->page['response']['totalCount'] .'">CSV</a>, ';
+		echo '</div><div class="col-md-6 text-right">';
+		
+		// Results per page. 
+		echo 'Results per page: ';
 		for( $limit = 30 ; $limit < 120 ; $limit += 30 ) {
-			echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='. $limit.'">'. $limit .'</a>, ';
+			echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='.$limit.'&offset='.$this->page['request']['offset'].'">'.$limit.'</a>, ';
+		}
+		
+		// Stats 
+		echo ' Total count: '. $this->page['response']['totalCount'] .'<br />';
+
+		// Page
+		echo 'Page ';
+		echo round( $this->page['request']['offset'] /  $this->page['request']['limit'], 0, PHP_ROUND_HALF_DOWN ) + 1 ; 
+		echo ', ';		
+		// Show previouse page. 
+		if( $this->page['request']['offset'] > 0 ) {
+			$offset = $this->page['request']['offset'] - $this->page['request']['limit'] ;
+			if( $offset <= 0 ) {
+				$offset = 0 ; 
+			}
+			echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='.$this->page['request']['limit'].'&offset=0">&#x21E4; First</a> | '; 
+			echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='.$this->page['request']['limit'].'&offset='.$offset.'">&larr; Previouse</a> | ';
+		}
+
+		// Show next page. 
+		if( $this->page['request']['offset'] < $this->page['response']['totalCount'] ) {
+			$offset = $this->page['request']['offset'] + $this->page['request']['limit'] ;
+			if( $offset >= ($this->page['response']['totalCount'] - $this->page['request']['limit']) ) {
+				$offset = $this->page['response']['totalCount'] - $this->page['request']['limit'] ; 
+			} else {
+				echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='.$this->page['request']['limit'].'&offset='.$offset.'">Next &rarr;</a> | ';
+			}
+			echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='.$this->page['request']['limit'].'&offset='.($this->page['response']['totalCount']-$this->page['request']['limit']).'">Last &#x21E5; </a>';
 		}
 		echo '</div>';		
 
@@ -513,6 +559,9 @@ $("#chartContainerCombined").dxChart({
     legend: { visible: false, }
 });
 </script>
+
+<div style='height: 2em;' ></div>
+
 <?php 
 
 	// Print the table of data. 
@@ -556,6 +605,7 @@ $("#chartContainerCombined").dxChart({
 		echo '<li><a href="?act=get&name='. $row['name'] .'">'. $row['name'] .'</a></li>';
 	}
 	echo '</ul>';
+	echo 'Total Data Count: '. $this->page['response']['totalCount'];
 ?>
 
 				    	<h3>Insert data via HTML Form</h3>
@@ -604,7 +654,7 @@ $("#chartContainerCombined").dxChart({
 try {
 	$dataLogger = new CDataLogger ();	
 	$dataLogger->ProccessRequest();
-	// print_r($dataLogger); 
+	echo '<pre>'; print_r($dataLogger); echo '</pre>';  
 } catch (Exception $e) {
 
 	$response['status'] 		= 'error';	
