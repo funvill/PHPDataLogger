@@ -403,6 +403,7 @@ class CDataLogger
 			exit(); 
 		} else if( $this->page['request']['format'] == 'csv' ) {
 			header('Content-Type: application/csv');
+			// Force the download and name it after the name of the variable. 
 			header('Content-Disposition: attachment; filename="'.$this->page['request']['name'].'.csv"');
 
 			// Print the header. 
@@ -477,39 +478,7 @@ if( isset( $this->page['request']['method'] ) && $this->page['request']['method'
 		// This is an individual property request 
 		echo "<p><a href='?'>List all properties</a></p>";
 
-		// Print the table of data. 
-		$firstRow = true ; 
-		echo '<table class="table table-striped">';
-		foreach( $this->page['response']['data'] as $row ) {
-			if( $firstRow ) {
-				$firstRow = false ;
-				echo '<thead><tr>';
-				foreach( array_keys( $row ) as $key ) {
-					if( $key == 'name' ) {
-						continue; 
-					}
-					echo '<th>'. $key .'</th>';
-				}
-				echo '</thead></tr><tbody>';
-			}
-			
-			echo '<tr>';								
-			foreach( $row as $key=>$value ) {
-				if( $key == 'name' ) {
-					continue; 
-				}
-				echo '<td>'. $value .'</td>';
-			}
-			echo '</tr>';
-		}
-		echo '</tbody><table>';
-
-		echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json">JSON</a>, ';
-		echo '<a href="?name='.$this->page['request']['name'].'&format=html">HTML</a>, ';
-		echo '<a href="?name='.$this->page['request']['name'].'&format=text">TEXT</a>, ';
-		echo '<a href="?name='.$this->page['request']['name'].'&format=csv">CSV</a>, ';
 		
- 
 		?>
 
 
@@ -526,14 +495,53 @@ $("#chartContainerCombined").dxChart({
     commonSeriesSettings: { type: "splineArea", argumentField: "date", point: { visible: true },},
     series: [ { valueField: "value", name: "value", color: "#880000" },],
     tooltip: { enabled: true, customizeText: function (arg) { return this.valueText ; } },    
-    title: "Property: <?php echo $this->page['request']['name'] ?>",
+    title: "Name: <?php echo $this->page['request']['name'] ?>",
     argumentAxis:{ valueMarginsEnabled: false, grid: { visible: false },},
     valueAxis: [{ grid: { visible: true }, }],
     legend: { visible: false, }
 });
 </script>
 <?php 
-						
+
+	// Print the table of data. 
+	$firstRow = true ; 
+	echo '<h2>Name: '. $this->page['request']['name'] . '</h2>';
+	echo '<table class="table table-striped">';
+	foreach( $this->page['response']['data'] as $row ) {
+		if( $firstRow ) {
+			$firstRow = false ;
+			echo '<thead><tr>';
+			foreach( array_keys( $row ) as $key ) {
+				if( $key == 'name' || $key =='id' ) {
+					continue; 
+				}
+				echo '<th>'. $key .'</th>';
+			}
+			echo '</thead></tr><tbody>';
+		}
+		
+		echo '<tr>';								
+		foreach( $row as $key=>$value ) {
+			if( $key == 'name' || $key =='id' ) {
+				continue; 
+			}
+			echo '<td>'. $value .'</td>';
+		}
+		echo '</tr>';
+	}
+	echo '</tbody><table>';
+
+	// Table Navagation 
+	echo '<div class="row"><div class="col-md-6">';
+	echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json">JSON</a>, ';
+	echo '<a href="?name='.$this->page['request']['name'].'&format=html">HTML</a>, ';
+	echo '<a href="?name='.$this->page['request']['name'].'&format=text">TEXT</a>, ';
+	echo '<a href="?name='.$this->page['request']['name'].'&format=csv">CSV</a>, ';
+	echo '</div><div class="col-md-6 text-right">Data points per page: ';
+	for( $limit = 30 ; $limit < 120 ; $limit += 30 ) {
+		echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='. $limit.'">'. $limit .'</a>, ';
+	}
+	echo '</div>';						
 
 } else {
 	// List all the data points 
