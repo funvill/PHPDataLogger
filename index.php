@@ -477,6 +477,17 @@ if( isset( $this->page['request']['method'] ) && $this->page['request']['method'
 	if( isset( $this->page['request']['name'] ) ) {
 		// This is an individual property request 
 		echo "<p><a href='?'>List all properties</a></p>";
+		// Table Navagation 
+		echo '<div class="row"><div class="col-md-6">';
+		echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json">JSON</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=html">HTML</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=text">TEXT</a>, ';
+		echo '<a href="?name='.$this->page['request']['name'].'&format=csv">CSV</a>, ';
+		echo '</div><div class="col-md-6 text-right">Data points per page: ';
+		for( $limit = 30 ; $limit < 120 ; $limit += 30 ) {
+			echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='. $limit.'">'. $limit .'</a>, ';
+		}
+		echo '</div>';		
 
 		
 		?>
@@ -485,7 +496,8 @@ if( isset( $this->page['request']['method'] ) && $this->page['request']['method'
 						<div id="chartContainerCombined" style="width:100%;height: 600px"></div>			
 						<script>var dataLoggingSource = [
 						<?php 
-				        foreach( $this->page['response']['data'] as $key => $value ) {
+						$charData = array_reverse( $this->page['response']['data'] ) ;  
+				        foreach( $charData as $key => $value ) {
 			                echo '{ date: "'. $value['created'] .'", value: '. $value['value'] ."},\n";				            
 				        } ?>
 						];
@@ -531,17 +543,7 @@ $("#chartContainerCombined").dxChart({
 	}
 	echo '</tbody><table>';
 
-	// Table Navagation 
-	echo '<div class="row"><div class="col-md-6">';
-	echo 'Download as: <a href="?name='.$this->page['request']['name'].'&format=json">JSON</a>, ';
-	echo '<a href="?name='.$this->page['request']['name'].'&format=html">HTML</a>, ';
-	echo '<a href="?name='.$this->page['request']['name'].'&format=text">TEXT</a>, ';
-	echo '<a href="?name='.$this->page['request']['name'].'&format=csv">CSV</a>, ';
-	echo '</div><div class="col-md-6 text-right">Data points per page: ';
-	for( $limit = 30 ; $limit < 120 ; $limit += 30 ) {
-		echo '<a href="?name='.$this->page['request']['name'].'&format=html&limit='. $limit.'">'. $limit .'</a>, ';
-	}
-	echo '</div>';						
+					
 
 } else {
 	// List all the data points 
