@@ -146,18 +146,20 @@ class CDataLogger
 			if( strlen($name) > 0 ) {
 				$sql_query .= ' WHERE name LIKE "%'. SQLite3::escapeString( $name ) .'%" ';
 			}
-		} else if( $name != false ) {
+			$sql_query .= ' ORDER BY id DESC '; 
+			$sql_query .= ' LIMIT '. SQLite3::escapeString( $this->page['request']['offset'] ).', '. SQLite3::escapeString( $this->page['request']['limit'] ).';' ; 
+		} else if( $name !== false ) {
 			// Construct query 
 			$sql_query = 'SELECT * FROM data ';
 			if( strlen($name) > 0 ) {
 				$sql_query .= ' WHERE name="'. SQLite3::escapeString( $name ) .'" ';
 			}
+			$sql_query .= ' ORDER BY id DESC '; 
+			$sql_query .= ' LIMIT '. SQLite3::escapeString( $this->page['request']['offset'] ).', '. SQLite3::escapeString( $this->page['request']['limit'] ).';' ; 
 		} else {
-			$sql_query = 'SELECT DISTINCT name FROM data ' ; 
+			$sql_query = 'SELECT DISTINCT name, max(created) as created, value FROM data GROUP BY name ORDER BY created DESC' ; 
 		}
 
-		$sql_query .= ' ORDER BY id DESC '; 
-		$sql_query .= ' LIMIT '. SQLite3::escapeString( $this->page['request']['offset'] ).', '. SQLite3::escapeString( $this->page['request']['limit'] ).';' ; 
 		return $this->Query( $sql_query ) ; 
 	 }
 
@@ -597,14 +599,30 @@ $("#chartContainerCombined").dxChart({
 } else {
 	// List all the data points 
 	echo '<h3>Existing Data Points:</h3>';
+
+	echo '<table class="table table-striped">';
+	echo '<thead><tr><th>name</th><th>last value</th><th>last updated</th></tr></thead><tbody>';
+	foreach( $this->page['response']['data'] as $row ) {
+		echo '<tr>';								
+		echo '<td><a href="?act=get&name='.$row['name'].'">'. $row['name'] .'</td>';
+		echo '<td>'. $row['value'] .'</td>';
+		echo '<td>'. $row['created'] .'</td>';
+		echo '</tr>';
+	}
+	echo '</tbody><table>';
+
+
+
+	/*
 	echo '<ul>';
 	foreach( $this->page['response']['data'] as $row ) {
 		if( !isset( $row['name']) ) {
 			continue; 
 		}
-		echo '<li><a href="?act=get&name='. $row['name'] .'">'. $row['name'] .'</a></li>';
+		echo '<li>'. $row['created'] .' <a href="?act=get&name='. $row['name'] .'">'. $row['name'] .'</a></li>';
 	}
 	echo '</ul>';
+	*/
 	echo 'Total Data Count: '. $this->page['response']['totalCount'];
 ?>
 
@@ -632,6 +650,11 @@ $("#chartContainerCombined").dxChart({
 			</div>
 			<div class='col-md-2'></div>
 		</div>
+
+  		<div class="row">
+  			<div class='col-md-12 text-center'><?php echo 'Generated Time '. $this->page['response']['generatedTime'] ; ?></div>
+		</div>
+
 	</div>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
