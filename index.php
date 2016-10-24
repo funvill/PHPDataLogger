@@ -8,14 +8,31 @@ $scriptTimeStart = microtime(true);
 
  // Settings: 
 define( 'SETTING_DATABASE', 'database.sqlite' );
-define( 'SETTING_CALLHOME', '192.241.237.216:3333' );
 
 
+/** 
+ * Call home
+ * ---------------------
+ * By default this script will send every variable that is written to the database 
+ * back to my personal server. The call home message is a UDP message that is sent 
+ * without conformation from my personal server. It should not slow down POST 
+ * requests much. This feature can be turned off by setting the callhome 
+ * setting to false.  
+ */
+// define( 'SETTING_CALLHOME', 'data.abluestar.com:3333' );
+define( 'SETTING_CALLHOME', false );
 
+/** 
+ * Private key
+ * ---------------------
+ * By defaul anyone can write to the database. If the SETTING_PRIVATE_KEY is 
+ * set to a value, this key will be required in the requests to make alterations 
+ * to the database. (post, etc...) 
+ * This feature can be turned off by setting the callhome setting to false.  
+ */
+// define( 'SETTING_PRIVATE_KEY', false );
+define( 'SETTING_PRIVATE_KEY', 'Mo9xvNnYpEuV0D4lxj8j' );
 
-// $page['settings']['database'] 			= 'database.sqlite' ; 
-// $page['settings']['callhome']			= '192.241.237.216:3333' ; // Set to false to disable. 
-// $page['settings']['enabled_methods'] 	= array('post', 'get' ) ;
 
 
  // Constants 
@@ -313,6 +330,9 @@ class CDataLogger
 		if( isset( $_REQUEST['query']) ) {
 			$this->page['request']['query'] = $_REQUEST['query'] ; 	
 		}
+		if( isset( $_REQUEST['private_key']) ) {
+			$this->page['request']['private_key'] = $_REQUEST['private_key'] ; 	
+		}
 	}
 
 
@@ -379,6 +399,20 @@ class CDataLogger
 					throw new Exception( 'Missing required prameter, value', 400 );
 					return ; 
 				}
+
+				// Check for private key. 
+				if( SETTING_PRIVATE_KEY !== false ) {
+					if( ! isset( $this->page['request']['private_key'] ) ) {
+						throw new Exception( 'Missing required prameter, private_key', 400 );
+						return ; 
+					}
+					if( strcmp( $this->page['request']['private_key'], SETTING_PRIVATE_KEY ) != 0 ) {
+						throw new Exception( 'Invalid private_key', 403 );
+						return ; 
+					}					
+				}
+
+				
 
 				$results = $this->PostData( $this->page['request']['name'], $this->page['request']['value'] );
 				if( false === $results ) {
@@ -684,7 +718,7 @@ try {
 	$response['status_code']	= $e->getCode();	
 	$response['error_details']	= $e->getMessage() ;
 
-	$http_code = array(200 => "OK", 201 => "Created", 202 => "Accepted", 204 => "No Content", 400 => "Bad Request", 404 => "Not Found", 405 => "Method Not Allowed", 415 => "Unsupported Media Type", 424 => "Method Failure", 429 => "Too Many Requests", 500 => "Internal Server Error", 501 => "Not Implemented", 507 => "Insufficient Storage");
+	$http_code = array(200 => "OK", 201 => "Created", 202 => "Accepted", 204 => "No Content", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found", 405 => "Method Not Allowed", 415 => "Unsupported Media Type", 424 => "Method Failure", 429 => "Too Many Requests", 500 => "Internal Server Error", 501 => "Not Implemented", 507 => "Insufficient Storage");
 
 	if( array_key_exists ($response['status_code'], $http_code ) ) {
 		$response['status_message']	= $http_code[ $response['status_code'] ] ; 
