@@ -711,7 +711,7 @@ $("#chartContainerCombined").dxChart({
 try {
 	$dataLogger = new CDataLogger ();	
 	$dataLogger->ProccessRequest();
-	echo '<pre>'; print_r($dataLogger); echo '</pre>';  
+	if( isset($_REQUEST['debug']) ) { echo '<pre>'; print_r($dataLogger); echo '</pre>'; }
 } catch (Exception $e) {
 
 	$response['status'] 		= 'error';	
