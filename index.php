@@ -23,6 +23,26 @@ define( 'SETTING_DATABASE', 'database.sqlite' );
 define( 'SETTING_CALLHOME', false );
 
 /** 
+ * MQTT 
+ * ---------------------
+ * Relay message via MQTT 
+ */ 
+define( 'SETTING_MQTT', true );
+if( SETTING_MQTT ) {
+	// https://github.com/bluerhinos/phpMQTT
+	require("phpMQTT.php");
+}
+// Example for io.adafruit.com
+// See for more infomation: https://learn.adafruit.com/adafruit-io/mqtt-api
+define( 'SETTING_MQTT_ADDRESS', "io.adafruit.com" );
+define( 'SETTING_MQTT_USERNAME', 'USERNAME' ); //  your Adafruit account username (see the accounts.adafruit.com page here to find yours)
+define( 'SETTING_MQTT_PASSWORD', 'AIO_KEY' ); // your Adafruit IO key (click the AIO Key button on a dashboard to find the key)
+
+define( 'SETTING_MQTT_PORT', 1883 ); // non-ssl=1883 
+define( 'SETTING_MQTT_TOPIC', SETTING_MQTT_USERNAME."/feeds/" );
+define( 'SETTING_MQTT_CLIENTID', "PHPDataLogger-". time() );
+
+/** 
  * Private key
  * ---------------------
  * By defaul anyone can write to the database. If the SETTING_PRIVATE_KEY is 
@@ -136,7 +156,8 @@ class CDataLogger
 	 	}
 
 	 	// Send the data home if needed. 
-	 	// $this->callhome( $name, $value, $created ) ; 
+	 	$this->callhome( $name, $value, $created ) ; 
+		$this->SendMQTT ($name, $value, $created ) ;
 
 	 	// return the ID of the inserted query. 
 	 	return $this->page['dbhandle']->lastInsertId () ; 
@@ -197,6 +218,33 @@ class CDataLogger
 			fwrite($socket, json_encode ( array('name'=>$name, 'value'=>$value, 'created'=>$created ) ) );
 			fclose($socket);
 		}
+	}
+
+	private function SendMQTT( $name, $value, $created ) {
+		if( false === SETTING_MQTT ) {
+			return ; // Nothing to do here. 
+		}
+
+		$mqtt = new phpMQTT(SETTING_MQTT_ADDRESS, SETTING_MQTT_PORT, SETTING_MQTT_CLIENTID);
+		$mqtt->debug = true ; 
+
+		if( strlen(SETTING_MQTT_PASSWORD) > 0 ) {
+			if (false === $mqtt->connect(false, NULL, SETTING_MQTT_USERNAME, SETTING_MQTT_PASSWORD )) {
+				echo "Error: Could not connect to MQTT, with username and password<br />\n";
+				// echo "SETTING_MQTT_USERNAME=".SETTING_MQTT_USERNAME."<br />\n";
+				// echo "SETTING_MQTT_PASSWORD=".SETTING_MQTT_PASSWORD."<br />\n";
+				return ; 
+			}	
+		} else {
+			if (false === $mqtt->connect()) {
+				echo "Error: Could not connect to MQTT, without username and password";
+				return ;				
+			}
+		}
+
+		// Send the message.
+		$mqtt->publish(SETTING_MQTT_TOPIC.$name,$value);
+		$mqtt->close();
 	}
 
 
@@ -664,6 +712,11 @@ $("#chartContainerCombined").dxChart({
 						<p>Using this form you can manually add a data point.</p>
 				    	<form role="form" method="get">
 				    		<input type='hidden' name='method' value='post' />
+							<?php 
+								if( SETTING_PRIVATE_KEY !== false ) {
+									echo "<input type='hidden' name='private_key' value='".SETTING_PRIVATE_KEY."' />"
+								}
+							?>
 				    		<div class='row'>
 				    			<label for='name' class="col-sm-2 control-label">Name</label>
 				    			<div class="col-sm-4"><input name='name' type='text' class="form-control" /></div>
