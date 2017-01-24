@@ -35,12 +35,12 @@ if( SETTING_MQTT ) {
 // Example for io.adafruit.com
 // See for more infomation: https://learn.adafruit.com/adafruit-io/mqtt-api
 define( 'SETTING_MQTT_ADDRESS', "io.adafruit.com" );
-define( 'SETTING_MQTT_USERNAME', 'USERNAME' ); //  your Adafruit account username (see the accounts.adafruit.com page here to find yours)
-define( 'SETTING_MQTT_PASSWORD', 'AIO_KEY' ); // your Adafruit IO key (click the AIO Key button on a dashboard to find the key)
-
-define( 'SETTING_MQTT_PORT', 1883 ); // non-ssl=1883 
+define( 'SETTING_MQTT_PORT', 1883 ); // ssl=8883, non-ssl=1883 
+define( 'SETTING_MQTT_USERNAME', 'funvill' ); //  your Adafruit account username (see the accounts.adafruit.com page here to find yours)
+define( 'SETTING_MQTT_PASSWORD', 'XXXXXXXXXXXX' ); // your Adafruit IO key (click the AIO Key button on a dashboard to find the key)
 define( 'SETTING_MQTT_TOPIC', SETTING_MQTT_USERNAME."/feeds/" );
-define( 'SETTING_MQTT_CLIENTID', "PHPDataLogger-". time() );
+define( 'SETTING_MQTT_CLIENTID', "YYYYYYYYYYYY" );
+
 
 /** 
  * Private key
@@ -51,7 +51,6 @@ define( 'SETTING_MQTT_CLIENTID', "PHPDataLogger-". time() );
  * This feature can be turned off by setting the callhome setting to false.  
  */
 // define( 'SETTING_PRIVATE_KEY', false );
-define( 'SETTING_PRIVATE_KEY', 'Mo9xvNnYpEuV0D4lxj8j' );
 
 
 
@@ -71,11 +70,14 @@ class CDataLogger
 	function __construct() {
 		
 		// Ensure that this server has the required php functions
+		// ToDo: There is an error with this section of code that does not work with PHP version 7.x 
+		//       https://github.com/funvill/PHPDataLogger/issues/2
+		// 
 		// PHP version >= 5.2.x 
-		$php_version = explode('.', PHP_VERSION);
-		if ($php_version[0] < 5 || ( $php_version[0] >= 5 && $php_version[1] < 2 ) ) {
-			die( "Error: PHP version 5.2 or greater required. current version=". $php_version ); 
-		}
+		// $php_version = explode('.', PHP_VERSION);
+		// if ($php_version[0] < 5 || ( $php_version[0] >= 5 && $php_version[1] < 2 ) ) {
+		// 	die( "Error: PHP version 5.2 or greater required. current version=". PHP_VERSION ); 
+		// }
 		
 		// Check the SQLite version. 
 		if (in_array("sqlite",PDO::getAvailableDrivers(),TRUE)) {
@@ -229,7 +231,7 @@ class CDataLogger
 		$mqtt->debug = true ; 
 
 		if( strlen(SETTING_MQTT_PASSWORD) > 0 ) {
-			if (false === $mqtt->connect(false, NULL, SETTING_MQTT_USERNAME, SETTING_MQTT_PASSWORD )) {
+			if (false === $mqtt->connect(true, NULL, SETTING_MQTT_USERNAME, SETTING_MQTT_PASSWORD )) {
 				echo "Error: Could not connect to MQTT, with username and password<br />\n";
 				// echo "SETTING_MQTT_USERNAME=".SETTING_MQTT_USERNAME."<br />\n";
 				// echo "SETTING_MQTT_PASSWORD=".SETTING_MQTT_PASSWORD."<br />\n";
@@ -241,8 +243,13 @@ class CDataLogger
 				return ;				
 			}
 		}
+		
+		// Debug 
+		// $path = SETTING_MQTT_TOPIC.$name ; 
+		// echo "path=".$path."<br />\n";
+		// echo "value=".$value."<br />\n";
 
-		// Send the message.
+		// Send the message.		
 		$mqtt->publish(SETTING_MQTT_TOPIC.$name,$value);
 		$mqtt->close();
 	}
